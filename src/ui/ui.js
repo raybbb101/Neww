@@ -336,8 +336,8 @@ export class UI {
   openSettings(fromTitle) {
     const g = this.game, S = g.settings;
     const m = this.openModal(`<h2>Settings</h2><div class="settings">
-      <label>Graphics<select id="sQ"><option value="low">Low (fastest)</option><option value="medium">Medium</option><option value="high">High</option></select></label>
-      <label>Camera<select id="sCam"><option value="free">Free 3D</option><option value="iso">2.5D (angled, top-down)</option></select></label>
+      <label>Graphics<select id="sQ"><option value="low">Low (no blur/glow, fastest)</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+      <label>Camera<select id="sCam"><option value="iso">2.5D diorama (HD-2D)</option><option value="free">Close 3D follow</option></select></label>
       <label>Look sensitivity<input type="range" id="sSens" min="0.3" max="2.5" step="0.1"></label>
       <label>Music<input type="range" id="sMus" min="0" max="1" step="0.05"></label>
       <label>Sound<input type="range" id="sSfx" min="0" max="1" step="0.05"></label>

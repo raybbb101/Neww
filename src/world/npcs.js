@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildHuman } from '../models/humans.js';
 import { optimizeRig, bakeStatic } from '../gfx/gfx.js';
+import { toSprite } from '../gfx/post.js';
 import { buildCreature, NPC_SPECIES, defaultAnimState } from '../models/creatures.js';
 import { SPECIES } from '../data/species.js';
 import { ROADS, isRoad, POND, PARK, SEA_X } from './city.js';
@@ -16,8 +17,8 @@ export class Human {
     this.speed = 0; this.pose = opts.pose || 'idle'; this.anim = { speed: 0, pose: this.pose, lookYaw: 0 };
     this.node = opts.node; this.prev = null; this.goal = null; this.wait = 0; this.react = null; this.reactT = 0; this.home = this.pos.clone(); this.homeYaw = this.yaw;
     this.walkSpeed = rand(1.1, 1.5) * (this.rig.child ? 1.2 : 1); this.say = null;
-    this.root.position.copy(this.pos); npcs.scene.add(this.root);
     if (opts.held) this.rig.held.add(opts.held);
+    toSprite(this.root); this.root.position.copy(this.pos); npcs.scene.add(this.root);
   }
   setReact(kind, t, data) { this.react = kind; this.reactT = t; this.reactData = data; }
   update(dt, player) {
@@ -97,7 +98,7 @@ export class Car {
     for (const [x, z] of [[-0.85, 1.3], [0.85, 1.3], [-0.85, -1.3], [0.85, -1.3]]) { const w = new THREE.Mesh(carGeo.wheel, cm(0x151515, { r: 0.8, m: 0 })); w.rotation.z = Math.PI / 2; w.position.set(x, 0.35, z); g.add(w); this.wheels.push(w); }
     this.head = cm(0xfff8e0, { e: 0xfff0c0, ei: 0 }); this.tail = cm(0x801010, { e: 0xff2020, ei: 0.3 });
     for (const s of [-0.6, 0.6]) { const h = new THREE.Mesh(carGeo.light, this.head); h.position.set(s, 0.7, 2.11); g.add(h); const t = new THREE.Mesh(carGeo.light, this.tail); t.position.set(s, 0.75, -2.11); g.add(t); }
-    optimizeRig(g); this.root = g; npcs.scene.add(g);
+    optimizeRig(g); toSprite(g); this.root = g; npcs.scene.add(g);
     this.from = a; this.to = b; this.path = null; this.s = 0; this.speed = 0; this.maxSpeed = r.range(8, 11); this.honkT = 0;
     this.col = { minX: 0, maxX: 0, minZ: 0, maxZ: 0, top: 1.45, bottom: 0, tag: 'movingcar' };
     npcs.physics.dynamic.push(this.col);
@@ -175,7 +176,7 @@ export class Critter {
       this.lod = bakeStatic(this.root); this.root.position.copy(savedPos); this.root.rotation.y = savedRot;
       if (this.lod) { this.lod.visible = false; this.lod.scale.setScalar(1 / this.root.scale.x); this.root.add(this.lod); this.parts = this.root.children.filter((c) => c !== this.lod && c.geometry?.type !== 'PlaneGeometry'); }
     }
-    this.far = false;
+    this.far = false; toSprite(this.root); this.rig.worldObjects?.forEach(toSprite);
     this.maxSpeed = { pigeon: 2.5, duck: 1, squirrel: 6, mouse: 4, cat: 4, dog: 5, butterfly: 2 }[kind] || 2;
   }
   setFar(f) { if (!this.lod || f === this.far) return; this.far = f; this.lod.visible = f; for (const c of this.parts) c.visible = !f; }

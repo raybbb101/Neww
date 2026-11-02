@@ -10,7 +10,7 @@ export class CameraRig {
     this.shake = 0; this.autoTimer = 0; this.fovBase = 62; this.fovKick = 0;
     this.lookAhead = new THREE.Vector3();
   }
-  setMode(m) { this.mode = m; if (m === 'iso') { this.pitch = 0.82; } else this.pitch = 0.32; }
+  setMode(m) { this.mode = m; if (m === 'iso') { this.pitch = 0.44; } else this.pitch = 0.32; }
   snapBehind(p) { this.yaw = p.yaw + Math.PI; this.smoothTarget.copy(p.pos); }
   update(dt, input, player, physics, opts = {}) {
     const look = input.consumeLook();
@@ -29,12 +29,15 @@ export class CameraRig {
       }
     } else {
       this.yaw -= look.x * sens; // iso: rotate only
-      this.pitch = damp(this.pitch, 0.82, 6, dt);
+      this.pitch = clamp(this.pitch + look.y * sens * 0.5, 0.3, 0.9);
+      if (Math.abs(look.x) > 0.5) this.autoTimer = 3;
+      this.autoTimer -= dt;
+      if (this.autoTimer < 0 && player.speed > 1.5 && !opts.combat) this.yaw = dampAngle(this.yaw, player.yaw + Math.PI, 0.25, dt);
     }
     const sp = player.sp.cam;
     const scale = player.anim.scale || 1;
-    const baseDist = (this.mode === 'iso' ? sp.dist * 3.2 + 4 : sp.dist) * this.zoom * (opts.combat ? 1.9 : 1) * Math.max(1, scale * 0.8);
-    const flyBonus = player.flyingNow() ? 1.35 : 1;
+    const baseDist = (this.mode === 'iso' ? sp.dist * 2.4 + 1.2 : sp.dist) * this.zoom * (opts.combat ? (this.mode === 'iso' ? 1.3 : 1.9) : 1) * Math.max(1, scale * 0.8);
+    const flyBonus = player.flyingNow() && this.mode !== 'iso' ? 1.35 : 1;
     this.dist = damp(this.dist, baseDist * flyBonus + Math.min(player.speed, 12) * 0.06, 3, dt);
     // target: creature head-ish, slight look-ahead in movement direction
     const h = sp.height * scale;
@@ -64,7 +67,7 @@ export class CameraRig {
     this.cam.position.set(cx + (Math.random() - 0.5) * s, cy + (Math.random() - 0.5) * s, cz + (Math.random() - 0.5) * s);
     this.cam.lookAt(T.x, T.y + (this.mode === 'iso' ? 0 : 0.05), T.z);
     // FOV kick at high speed
-    const fovT = (opts.fov || sp.fov || 62) + clamp((player.speed - 6) * 1.2, 0, 10) + this.fovKick;
+    const fovT = (this.mode === 'iso' ? 36 : (opts.fov || sp.fov || 62)) + clamp((player.speed - 6) * 1.2, 0, 10) + this.fovKick;
     this.fovKick = damp(this.fovKick, 0, 5, dt);
     if (Math.abs(this.cam.fov - fovT) > 0.05) { this.cam.fov = damp(this.cam.fov, fovT, 4, dt); this.cam.updateProjectionMatrix(); }
   }

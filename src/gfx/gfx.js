@@ -124,6 +124,8 @@ export function makeWindowTextures(style = 0) {
     for (let y = 0; y < cells; y++) for (let x = 0; x < cells; x++) {
       const ox = x * S, oy = y * S;
       g.fillStyle = '#ffffff'; g.fillRect(ox, oy, S, S);
+      for (let i = 0; i < 70; i++) { g.fillStyle = r.chance(0.5) ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.5)'; g.fillRect(ox + r.int(0, S - 2), oy + r.int(0, S - 1), r.int(1, 3), 1); }
+      if (style === 0) { g.fillStyle = 'rgba(0,0,0,0.05)'; for (let by = 0; by < S; by += 4) for (let bx = (by / 4) % 2 * 4; bx < S; bx += 8) g.fillRect(ox + bx, oy + by, 1, 4); for (let by = 0; by < S; by += 4) g.fillRect(ox, oy + by, S, 1); }
       g.fillStyle = 'rgba(0,0,0,0.06)'; g.fillRect(ox, oy + S - 6, S, 6); // floor line
       const ww = style === 1 ? 44 : 30, wh = style === 1 ? 34 : 38;
       const wx = ox + (S - ww) / 2, wy = oy + 12;

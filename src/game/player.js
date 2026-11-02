@@ -3,6 +3,7 @@ import { SPECIES } from '../data/species.js';
 import { buildCreature, defaultAnimState } from '../models/creatures.js';
 import { clamp, damp, angleDiff, wrapAngle, lerp } from '../core/utils.js';
 import { audio } from '../core/audio.js';
+import { toSprite } from '../gfx/post.js';
 
 const RADIUS = { cat: 0.2, dog: 0.3, rabbit: 0.17, bird: 0.12, snake: 0.14, butterfly: 0.08 };
 const HEIGHT = { cat: 0.35, dog: 0.62, rabbit: 0.35, bird: 0.22, snake: 0.12, butterfly: 0.1 };
@@ -37,6 +38,7 @@ export class Player {
     if (this.hp > this.maxHp) this.hp = this.maxHp;
   }
   addTo(scene) {
+    toSprite(this.rig.root); this.rig.worldObjects?.forEach(toSprite);
     scene.add(this.rig.root);
     if (this.rig.worldObjects) this.rig.worldObjects.forEach((o) => scene.add(o));
   }
@@ -96,6 +98,7 @@ export class Player {
     const strafe = this.guarding && inRift;
     if (strafe) target = Math.min(target, M.walk * 1.4) * Math.max(0.35, mag);
     if (mag > 0.08 && !strafe) {
+      const want = Math.atan2(dx, dz);
       const diff = angleDiff(this.yaw, want);
       const turnSpd = (M.turn || 9) * (inRift ? 1.6 : 1) * (this.onGround || this.flyingNow() ? 1 : 0.4) * (this.speed > M.run * 1.2 ? 0.75 : 1);
       // sharp reversals: pivot quickly when slow

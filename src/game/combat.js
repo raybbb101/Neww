@@ -4,6 +4,7 @@ import { buildCreature, defaultAnimState } from '../models/creatures.js';
 import { SPECIES } from '../data/species.js';
 import { audio } from '../core/audio.js';
 import { clamp, angleDiff, rand, TAU, damp } from '../core/utils.js';
+import { toSprite } from '../gfx/post.js';
 
 const ACTION_BY_SPECIES = { cat: 'swipe', dog: 'bite', rabbit: 'kick', bird: 'bite', snake: 'strike', butterfly: 'flap' };
 const _v = new THREE.Vector3();
@@ -247,7 +248,7 @@ export class Combat {
       rig.root.traverse((o) => { if (o.isMesh && o.material.isMeshStandardMaterial) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.65; o.material.emissive = new THREE.Color(def.color); o.material.emissiveIntensity = 0.8; } });
       const a = (i / def.count) * TAU;
       const pos = p.pos.clone().add(new THREE.Vector3(Math.cos(a) * 1.5, 0, Math.sin(a) * 1.5));
-      rig.root.position.copy(pos); this.ctx.scene.add(rig.root);
+      rig.root.position.copy(pos); toSprite(rig.root); this.ctx.scene.add(rig.root);
       this.vfx.burst(pos.clone().setY(pos.y + 0.4), def.color, 20, 3, 0.6, 0.25, -1);
       this.allies.push({ rig, pos, yaw: p.yaw, t: def.dur, def, atkT: rand(0, 0.5), anim: defaultAnimState(), speed: 0 });
     }
@@ -260,7 +261,7 @@ export class Combat {
       rig.root.traverse((o) => { if (o.isMesh && o.material.isMeshStandardMaterial) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.55; o.material.emissive = new THREE.Color(def.color); o.material.emissiveIntensity = 0.6; } });
       const a = p.yaw + (i ? 1.6 : -1.6);
       const pos = p.pos.clone().add(new THREE.Vector3(Math.sin(a) * 2.5, 0, Math.cos(a) * 2.5));
-      rig.root.position.copy(pos); this.ctx.scene.add(rig.root);
+      rig.root.position.copy(pos); toSprite(rig.root); this.ctx.scene.add(rig.root);
       this.decoys.push({ rig, pos, t: def.dur, anim: { ...defaultAnimState(), flying: true }, phase: rand(0, 6) });
     }
     this.vfx.burst(p.centerPos(), def.color, 30, 3, 0.7, 0.2, 0, { vary: true });

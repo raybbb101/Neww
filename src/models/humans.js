@@ -30,7 +30,7 @@ export function buildHuman(seed, opts = {}) {
   const dress = !child && r.chance(0.2);
   const torso = part(G.cap, top, 0.17, 0.17, 0.11); torso.position.y = 0.28; spine.add(torso);
   if (dress) { const sk = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.55, 12, 1, true), top); sk.position.y = -0.18; sk.castShadow = true; spine.add(sk); }
-  const neck = new THREE.Group(); neck.position.y = 0.55; spine.add(neck);
+  const neck = new THREE.Group(); neck.position.y = 0.5; neck.scale.setScalar(1.55); spine.add(neck); // chibi-style big heads
   const head = part(G.sph, skin, 0.115, 0.13, 0.12); head.position.y = 0.12; neck.add(head);
   const nose = part(G.sph, skin, 0.025, 0.03, 0.03); nose.position.set(0, 0.11, 0.12); neck.add(nose);
   const eyeM = m(0x1a1a1a, 0.3);
@@ -62,8 +62,8 @@ export function buildHuman(seed, opts = {}) {
   const lod = new THREE.Group();
   const lb = part(G.box, bottom, 0.3, 0.9, 0.2); lb.position.y = 0.45; lod.add(lb);
   const lt = part(G.cap, top, 0.18, 0.18, 0.12); lt.position.y = 1.22; lod.add(lt);
-  const lh = part(G.sph, skin, 0.12, 0.13, 0.12); lh.position.y = 1.62; lod.add(lh);
-  const lhair = part(G.sph, hairC, 0.125, 0.08, 0.13); lhair.position.y = 1.7; lod.add(lhair);
+  const lh = part(G.sph, skin, 0.18, 0.2, 0.18); lh.position.y = 1.7; lod.add(lh);
+  const lhair = part(G.sph, hairC, 0.19, 0.12, 0.2); lhair.position.y = 1.83; lod.add(lhair);
   optimizeRig(lod); lod.visible = false; root.add(lod);
   let far = false;
   const setFar = (f) => { if (f === far) return; far = f; body.visible = !f; lod.visible = f; };

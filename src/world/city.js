@@ -135,15 +135,17 @@ export function buildCity(scene, physics) {
     const r = new RNG(5);
     for (let i = 0; i < 9000; i++) { g.fillStyle = `rgba(0,0,0,${r.range(0.02, 0.07)})`; g.beginPath(); g.arc(r.range(0, S * PX), r.range(0, S * PX), r.range(1, 7), 0, TAU); g.fill(); }
   });
-  groundTex.anisotropy = 8; groundTex.generateMipmaps = true; groundTex.minFilter = THREE.LinearMipmapLinearFilter;
-  const detail = noiseTexture(256, 11, 1);
+  groundTex.anisotropy = 8; groundTex.generateMipmaps = true; groundTex.minFilter = THREE.LinearMipmapLinearFilter; groundTex.magFilter = THREE.NearestFilter;
+  // pixel-art grain: 64px dither tile, 8 texels per metre, nearest filtered
+  const detail = canvasTex(64, 64, (g) => { const r = new RNG(11); for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const v = 190 + Math.round(r.range(-1, 1) * 2) * 22 + ((x + y) % 7 === 0 ? 18 : 0); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(x, y, 1, 1); } }, { repeat: true, linear: true });
+  detail.magFilter = THREE.NearestFilter;
   const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.95 });
   groundMat.customProgramCacheKey = () => 'ground';
   groundMat.onBeforeCompile = (sh) => {
     sh.uniforms.detailMap = { value: detail };
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vWorldXZ;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvWorldXZ = (modelMatrix * vec4(position,1.0)).xz;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D detailMap; varying vec2 vWorldXZ;')
-      .replace('#include <map_fragment>', '#include <map_fragment>\n float dn = texture2D(detailMap, vWorldXZ*0.35).r * 0.6 + texture2D(detailMap, vWorldXZ*0.05).r*0.4; diffuseColor.rgb *= 0.72 + dn*0.38;');
+      .replace('#include <map_fragment>', '#include <map_fragment>\n float dn = texture2D(detailMap, (floor(vWorldXZ*8.0) + 0.5)/64.0).r; diffuseColor.rgb *= 0.55 + dn*0.6;');
   };
   out.groundMat = groundMat;
   const worldUV = (geo) => { const p = geo.attributes.position, uv = geo.attributes.uv; for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) + S / 2) / S, 1 - (p.getZ(i) + S / 2) / S); return geo; };
@@ -274,6 +276,7 @@ export function buildCity(scene, physics) {
 
   // ───────────── Buildings ─────────────
   const winTex = [makeWindowTextures(0), makeWindowTextures(1)];
+  for (const t of winTex) { t.albedo.magFilter = THREE.NearestFilter; t.emissive.magFilter = THREE.NearestFilter; }
   const wallMats = winTex.map((t) => new THREE.MeshStandardMaterial({ vertexColors: true, map: t.albedo, emissiveMap: t.emissive, emissive: 0xffffff, emissiveIntensity: 0, roughness: 0.8 }));
   out.wallMats = wallMats;
   const CELLW = 3.2, ATL = 8;
@@ -638,7 +641,7 @@ export function buildCity(scene, physics) {
   group.add(walls[0].build(wallMats[0]), walls[1].build(wallMats[1]));
   group.add(solid.build(MAT.batch));
   group.add(flat.build(MAT.batchFlat));
-  group.add(foliage.build(MAT.foliage));
+  const fol = foliage.build(MAT.foliage); fol.layers.set(1); group.add(fol);
   group.add(metal.build(MAT.metal));
   const gl = glass.build(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.75 }), { cast: false });
   group.add(gl);
@@ -650,8 +653,8 @@ export function buildCity(scene, physics) {
     const P = [], Cc = [];
     for (let k = 0; k < 3; k++) {
       const a = (k / 3) * Math.PI, c = Math.cos(a) * 0.12, s = Math.sin(a) * 0.12;
-      P.push(-c, 0, -s, c, 0, s, 0, 0.42, 0);
-      Cc.push(0.25, 0.42, 0.18, 0.25, 0.42, 0.18, 0.6, 0.85, 0.35);
+      P.push(-c * 0.7, 0, -s * 0.7, c * 0.7, 0, s * 0.7, 0, 0.2, 0);
+      Cc.push(0.42, 0.62, 0.26, 0.42, 0.62, 0.26, 0.75, 0.95, 0.45);
     }
     blade.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); blade.setAttribute('color', new THREE.Float32BufferAttribute(Cc, 3)); blade.computeVertexNormals();
     // normals up for nicer lighting

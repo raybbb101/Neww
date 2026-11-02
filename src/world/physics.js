@@ -71,7 +71,7 @@ export class CollisionWorld {
       const t = i / steps; const x = ax + dx * t, z = az + dz * t;
       const list = this.query(x, z, CELL * 0.75, this._q4 || (this._q4 = []));
       for (const b of list) {
-        if (seen.has(b) || b.top < minTop || b.noCam) continue; seen.add(b);
+        if (seen.has(b) || b.top < minTop || b.noCam || b.noBlock) continue; seen.add(b);
         // slab test in 3D
         let t0 = 0, t1 = 1;
         const test = (o, d, mn, mx) => {

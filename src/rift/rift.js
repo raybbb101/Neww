@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { buildMonster, MONSTERS } from '../models/monsters.js';
 import { CollisionWorld } from '../world/physics.js';
 import { Combat } from '../game/combat.js';
+import { toSprite } from '../gfx/post.js';
 import { makeSky, dotTexture, globalUniforms } from '../gfx/gfx.js';
 import { audio } from '../core/audio.js';
 import { clamp, angleDiff, rand, TAU, damp, RNG } from '../core/utils.js';
@@ -26,7 +27,7 @@ class Enemy {
     this.kb = new THREE.Vector3(); this.stun = 0; this.poison = 0; this.poisonT = 0; this.slowT = 0; this.fear = 0; this.flyH = this.def.fly || 0;
     this.strafe = Math.random() < 0.5 ? 1 : -1; this.phase = 0; this.spawnScale = 0;
     this.rig.root.position.copy(this.pos); this.rig.root.scale.setScalar(0.01); this.scale = type === 'boss' ? 1 : 1.25; this.radius *= this.scale;
-    rift.scene.add(this.rig.root);
+    toSprite(this.rig.root); rift.scene.add(this.rig.root);
   }
   center() { return new THREE.Vector3(this.pos.x, this.pos.y + (this.flyH + (this.type === 'tumbler' ? 0.55 : this.type === 'totem' ? 1.2 : this.type.startsWith('smear') || this.type === 'mote' ? 0.5 : 0)) * (this.scale || 1), this.pos.z); }
   takeDamage(dmg, info = {}) {
@@ -196,11 +197,11 @@ export class Rift {
     s.background = new THREE.Color(0x120820);
     s.fog = new THREE.FogExp2(0x1a0a2a, 0.018);
     const sky = makeSky(); sky.material.uniforms.riftTint.value = 1; s.add(sky); this.sky = sky;
-    s.add(new THREE.HemisphereLight(0xa080e0, 0x302050, 1.5));
+    const hemi = new THREE.HemisphereLight(0xa080e0, 0x302050, 1.5); hemi.layers.enableAll(); s.add(hemi);
     const key = new THREE.DirectionalLight(0xc0b0ff, 1.6); key.position.set(10, 25, 8); key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024); const c = key.shadow.camera; c.left = c.bottom = -28; c.right = c.top = 28; c.near = 1; c.far = 80; key.shadow.bias = -0.0005;
+    key.shadow.mapSize.set(1024, 1024); const c = key.shadow.camera; c.left = c.bottom = -28; c.right = c.top = 28; c.near = 1; c.far = 80; key.shadow.bias = -0.0005; key.layers.enableAll(); key.shadow.camera.layers.enableAll();
     s.add(key); s.add(key.target);
-    const rim = new THREE.DirectionalLight(0x40e0ff, 0.8); rim.position.set(-15, 6, -20); s.add(rim);
+    const rim = new THREE.DirectionalLight(0x40e0ff, 0.8); rim.position.set(-15, 6, -20); rim.layers.enableAll(); s.add(rim);
     // Hex-tile platform
     const hex = new THREE.CylinderGeometry(1, 1, 1, 6);
     const tileMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.15, flatShading: true });
@@ -262,7 +263,7 @@ export class Rift {
     this.combat = new Combat({ player: this.player, vfx: this.vfx, scene: this.scene, enemies: this.enemies, cam: this.cam, groundY: 0, toast: (t, k) => this.game.ui.toast(t, k), number: (p, t, c) => this.number(p, t, c), hitstop: (t) => this.game.hitstop(t), ultFlash: (d) => this.game.ui.ultFlash(d) });
     const p = this.player; p.mode = 'rift'; p.spirit = 30; p.buffs = []; p.cds = {}; p.shield = 0; p.invuln = 1.5; p.flying = p.sp.rig === 'butterfly'; p.crouch = false; p.sit = 0;
     p.parryT = 0; p.parryCd = 0; p.parryRec = 0; p.guarding = false; p.guardT = 0; p.guardBroken = 0; p.dodgeWin = 0;
-    p.addTo(this.scene); p.teleport(new THREE.Vector3(0, 0, 14), Math.PI);
+    p.addTo(this.scene); p.teleport(new THREE.Vector3(0, 0, 9), Math.PI);
     this.vfx.attach(this.scene); this.vfx.clear();
     this.cam.snapBehind(p);
     this.nextWaveT = 2.2; this.banner(`${mist.name} — Tier ${this.tier}`);

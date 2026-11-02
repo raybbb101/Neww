@@ -3,6 +3,7 @@ import { Input, isTouch } from './core/input.js';
 import { audio } from './core/audio.js';
 import { initMaterials, blobShadow } from './gfx/gfx.js';
 import { VFX } from './gfx/vfx.js';
+import { Post } from './gfx/post.js';
 import { CameraRig } from './game/camera.js';
 import { Player } from './game/player.js';
 import { World } from './world/world.js';
@@ -15,7 +16,7 @@ import { buildCreature, defaultAnimState } from './models/creatures.js';
 import { clamp } from './core/utils.js';
 
 const SAVE_KEY = 'mistwalkers_save_v1';
-const DEFAULT_SETTINGS = { quality: isTouch ? 'medium' : 'high', camMode: 'free', sens: 1, music: 0.45, sfx: 0.8, fps: false };
+const DEFAULT_SETTINGS = { v: 2, quality: isTouch ? 'medium' : 'high', camMode: 'iso', sens: 1, music: 0.45, sfx: 0.8, fps: false };
 
 class Game {
   constructor() {
@@ -26,7 +27,8 @@ class Game {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.0;
     this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.camera = new THREE.PerspectiveCamera(62, 1, 0.05, 1600);
+    this.camera = new THREE.PerspectiveCamera(62, 1, 0.1, 1200);
+    this.post = new Post(this.renderer);
     this.input = new Input(this.canvas); this.input.wantPointerLock = !isTouch;
     this.input.onPointerLockChange = (locked) => { if (!locked && (this.state === 'city' || this.state === 'rift') && !this.ui.modalOpen) this.ui.openPause(); };
     this.camRig = new CameraRig(this.camera);
@@ -59,6 +61,7 @@ class Game {
     let s = null; try { s = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (_) {}
     this.saveData = s || { species: {}, last: { key: 'cat', coat: 0 } };
     this.settings = { ...DEFAULT_SETTINGS, ...(this.saveData.settings || {}) };
+    if (this.settings.v !== 2) { this.settings.v = 2; this.settings.camMode = 'iso'; } // new HD-2D default
   }
   progFor(key) {
     const sd = this.saveData.species;
@@ -82,7 +85,7 @@ class Game {
     this.input.lookSensitivity = S.sens;
     const pr = Math.min(window.devicePixelRatio || 1, S.quality === 'high' ? 2 : S.quality === 'medium' ? 1.4 : 1);
     this.renderer.setPixelRatio(pr); this.onResize();
-    this.renderer.shadowMap.enabled = S.quality !== 'low';
+    this.renderer.shadowMap.enabled = S.quality !== 'low'; if (this.post) this.post.quality = S.quality;
     if (!initial && this.world) { this.world.setGrass(S.quality); this.world.setShadowQuality(S.quality); this.renderer.shadowMap.needsUpdate = true; }
     if (this.camRig.mode !== S.camMode) this.camRig.setMode(S.camMode);
     document.getElementById('fps').style.display = S.fps ? 'block' : 'none';
@@ -90,6 +93,7 @@ class Game {
   onResize() {
     const w = window.innerWidth, h = window.innerHeight;
     this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
+    this.post?.setSize();
     this.vfx.setViewport(h * this.renderer.getPixelRatio());
     if (this.world) this.world.mistMat.uniforms.scale.value = h * this.renderer.getPixelRatio() * 0.9;
   }
@@ -230,17 +234,24 @@ class Game {
       if (inp.hit('map')) { if (this.ui.modalOpen) this.ui.closeModal(); else this.ui.openMap(); }
       if (inp.hit('abilities') && !this.ui.modalOpen) this.ui.openAbilities();
       if (inp.hit('journal') && !this.ui.modalOpen) this.ui.openJournal();
-      if (inp.hit('camMode')) { this.settings.camMode = this.settings.camMode === 'free' ? 'iso' : 'free'; this.camRig.setMode(this.settings.camMode); this.ui.toast(this.settings.camMode === 'iso' ? '🎥 2.5D camera' : '🎥 Free 3D camera'); this.saveSettings(); }
+      if (inp.hit('camMode')) { this.settings.camMode = this.settings.camMode === 'free' ? 'iso' : 'free'; this.camRig.setMode(this.settings.camMode); this.ui.toast(this.settings.camMode === 'iso' ? '🎥 2.5D diorama camera' : '🎥 Close 3D camera'); this.saveSettings(); }
     }
     inp.enabled = !this.ui.modalOpen;
     const paused = this.ui.modalOpen;
-    if (this.state === 'city') { if (!paused) { this.world.update(dt, inp); this.vfx.update(dt); } this.ui.update(paused ? 0 : realDt); this.renderer.render(this.world.scene, this.camera); this.autosave(realDt); }
-    else if (this.state === 'rift') { if (!paused) { this.rift.update(dt, inp); this.vfx.update(dt); } this.ui.update(paused ? 0 : realDt); this.renderer.render(this.rift.scene, this.camera); }
+    if (this.state === 'city') { if (!paused) { this.world.update(dt, inp); this.vfx.update(dt); } this.ui.update(paused ? 0 : realDt); this.draw(this.world.scene); this.autosave(realDt); }
+    else if (this.state === 'rift') { if (!paused) { this.rift.update(dt, inp); this.vfx.update(dt); } this.ui.update(paused ? 0 : realDt); this.draw(this.rift.scene); }
     else if (this.state === 'select' || this.state === 'title' || this.state === 'loading') this.renderMenu(realDt);
-    else if (this.state === 'transition') { const sc = this.rift.done || !this.player || this.player.mode === 'city' ? this.world.scene : this.rift.scene; this.vfx.update(dt); this.renderer.render(this.player?.mode === 'rift' ? this.rift.scene : this.world.scene, this.camera); }
+    else if (this.state === 'transition') { const sc = this.rift.done || !this.player || this.player.mode === 'city' ? this.world.scene : this.rift.scene; this.vfx.update(dt); this.draw(this.player?.mode === 'rift' ? this.rift.scene : this.world.scene); }
     audio.update();
     inp.endFrame();
     if (this.settings.fps) { this.fpsN++; this.fpsT += realDt; if (this.fpsT > 0.5) { document.getElementById('fps').textContent = Math.round(this.fpsN / this.fpsT) + ' fps'; this.fpsN = 0; this.fpsT = 0; } }
+  }
+  draw(scene) {
+    const P = this.post;
+    P.exposure = this.renderer.toneMappingExposure;
+    if (this.player && this.state !== 'title' && this.state !== 'select') { const c = this.player.centerPos(); P.focus = this.camera.position.distanceTo(c); }
+    P.dof = this.state === 'rift' ? 0.7 : 1; P.bloom = this.state === 'rift' ? 0.8 : (this.world?.night > 0.5 ? 0.9 : 0.55);
+    P.render(scene, this.camera);
   }
   autosave(dt) { this.saveT = (this.saveT || 0) + dt; if (this.saveT > 15) { this.saveT = 0; this.save(); } }
   renderMenu(dt) {
@@ -249,18 +260,17 @@ class Game {
     const t = performance.now() * 0.00004;
     this.world.updateSky(0);
     const cx = -60 + Math.cos(t) * 90, cz = -60 + Math.sin(t) * 90;
-    this.camera.position.set(cx, 34, cz); this.camera.lookAt(-30, 0, -40);
-    this.camera.fov = 55; this.camera.updateProjectionMatrix();
+    this.camera.position.set(cx, 46, cz); this.camera.lookAt(-30, 0, -40);
+    this.camera.fov = 40; this.camera.updateProjectionMatrix();
     this.world.sun.position.set(-30 + this.world.sunDir.x * 120, this.world.sunDir.y * 120, -40 + this.world.sunDir.z * 120); this.world.sun.target.position.set(-30, 0, -40);
     this.renderer.setScissorTest(false);
-    this.renderer.render(this.world.scene, this.camera);
+    this.post.focus = 95; this.post.dof = 0.8; this.post.bloom = 0.5; this.post.exposure = 1; this.post.render(this.world.scene, this.camera);
     if (this.state === 'select' && this.previewRig) {
       const W = window.innerWidth, H = window.innerHeight;
       const mobile = W < 820 && H > W;
       let vx, vy, vw, vh;
       if (mobile) { vw = W; vh = H * 0.34; vx = 0; vy = H - H * 0.07 - vh; } // GL origin is bottom-left
       else { vw = W * 0.42; vh = H * 0.8; vx = W * 0.29; vy = H * 0.1; }
-      this.renderer.setViewport(vx, vy, vw, vh); this.renderer.setScissor(vx, vy, vw, vh); this.renderer.setScissorTest(true);
       const r = this.previewRig, a = this.previewAnim;
       this.previewYaw += dt * 0.35;
       r.root.rotation.y = this.previewYaw;
@@ -270,10 +280,8 @@ class Game {
       else r.update(dt, a);
       const s = this.previewSize;
       this.previewCam.aspect = vw / vh; this.previewCam.position.set(0, 0.55 * s, 2.2 * s); this.previewCam.lookAt(0, 0.2 * s, 0); this.previewCam.updateProjectionMatrix();
-      this.renderer.autoClear = false; this.renderer.clearDepth();
-      this.renderer.render(this.preview, this.previewCam);
-      this.renderer.autoClear = true;
-      this.renderer.setScissorTest(false); this.renderer.setViewport(0, 0, W, H);
+      this.post.renderPixel(this.preview, this.previewCam, vx, vy, vw, vh);
+      this.renderer.setViewport(0, 0, W, H);
     }
   }
 }

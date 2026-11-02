@@ -53,6 +53,8 @@ export class World {
     s.add(this.sun); s.add(this.sun.target);
     this.fill = new THREE.DirectionalLight(0x9ab8ff, 0.25); this.fill.position.set(-40, 30, -60); s.add(this.fill);
     this.sunDir = new THREE.Vector3();
+    for (const l of [this.hemi, this.sun, this.fill]) l.layers.enableAll();
+    this.sun.shadow.camera.layers.enableAll();
   }
   setShadowQuality(q) { const m = q === 'high' ? 2048 : q === 'medium' ? 1024 : 512; this.sun.shadow.mapSize.set(m, m); if (this.sun.shadow.map) { this.sun.shadow.map.dispose(); this.sun.shadow.map = null; } this.sun.castShadow = q !== 'low'; }
   // ───────── Black mist ─────────
@@ -471,6 +473,15 @@ export class World {
           if (Math.random() < dt * 6) { const k = Math.random(); const q = p.pos.clone().lerp(t.pos, k); q.y = lerp(p.pos.y, t.pos.y, k) + 0.3 + Math.sin(k * 20 + globalUniforms.uTime.value * 3) * 0.1; this.vfx.trail(q, t.c, 0.25, 1.2); }
         } else if (Math.random() < dt * 3) this.vfx.trail(t.pos.clone().setY(t.pos.y + 0.8), t.c, 0.5, 0.8);
       }
+    }
+    // HD-2D ambience: drifting light motes by day, fireflies at night
+    this.moteT = (this.moteT || 0) - dt;
+    if (this.moteT <= 0) {
+      this.moteT = 0.12;
+      const night = this.night > 0.6, a = Math.random() * TAU, r = 3 + Math.random() * 12;
+      const q = new THREE.Vector3(p.pos.x + Math.cos(a) * r, p.pos.y + 0.3 + Math.random() * 3.5, p.pos.z + Math.sin(a) * r);
+      const c = new THREE.Color(night ? 0xc8ff70 : 0xffe6a0);
+      this.vfx.emit({ x: q.x, y: q.y, z: q.z, vx: (Math.random() - 0.5) * 0.3, vy: 0.08 + Math.random() * 0.15, vz: (Math.random() - 0.5) * 0.3, life: 4, max: 4, size: night ? 0.16 : 0.09, r: c.r * (night ? 1 : 0.7), g: c.g * (night ? 1 : 0.7), b: c.b * (night ? 1 : 0.7), grav: 0, drag: 0.2, grow: 0 });
     }
     // boats bob
     for (const b of this.boats) { b.p += dt; b.g.position.y = -0.35 + Math.sin(b.p * 0.9) * 0.08; b.g.rotation.z = Math.sin(b.p * 0.7) * 0.03; b.g.rotation.x = Math.sin(b.p * 0.5) * 0.02; }

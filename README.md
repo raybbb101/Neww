@@ -24,10 +24,15 @@ Runs in any modern browser on **PC and mobile**. It has a **fullscreen** button 
 | Rift attacks | `Left click`, `Right click` · skills `1 2 3` · ultimates `Q R` |
 | Rift defence | dodge `Shift`/`C` · guard (hold) `F` · parry (tap) `E` or middle mouse |
 | Map · Abilities · Journal · Pause | `M` · `I` · `L` · `Esc` |
-| Toggle 3D / 2.5D camera | `V` |
+| Toggle 2.5D diorama / close 3D camera | `V` |
 
 ### Controls (mobile)
 Left side of the screen is the joystick (push it to the edge to sprint). Drag on the right side to look around. On‑screen buttons handle jump, interact, instinct, nap and call. In the Rift, attack, skill, ultimate and dodge buttons appear. Tap **⛶** to go fullscreen. On iPhone, use *Share → Add to Home Screen* instead.
+
+## Look
+The game uses an **HD-2D** style. Characters, NPCs, monsters and trees are drawn as outlined pixel‑art sprites in a 3D diorama world with pixel textures. On top of that there's depth‑of‑field and tilt‑shift blur, bloom on lights, water and magic, warm colour grading, and floating light motes (fireflies at night).
+
+How it works: the creatures are still animated 3D models, so they have smooth animation and can face any direction. They're rendered at low resolution, then given nearest‑neighbour pixels, outlines and a limited colour palette. The default camera is the angled 2.5D diorama view (`V` switches to a close 3D follow camera).
 
 ## What's in it
 - **City map** (~400 m × 400 m) with districts: Central Park (with pond and island), Old Town (rooftop routes and fire escapes), Downtown towers, Fountain Plaza, Market Street, Café Corner, Maple Residences (yards and fences), Community Garden, Schoolyard, Construction Yard with a crane, and Harbor Docks with piers and boats.
