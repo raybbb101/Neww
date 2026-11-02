@@ -1,0 +1,27 @@
+{
+  "name": "mistwalkers",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raybbb101/Neww.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/raybbb101/Neww/issues"
+  },
+  "homepage": "https://github.com/raybbb101/Neww#readme",
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  },
+  "private": true
+}
