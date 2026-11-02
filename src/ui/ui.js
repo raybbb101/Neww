@@ -137,7 +137,7 @@ export class UI {
       if (L.normal[1]) mk('atk2', ABILITIES[L.normal[1]].icon, 'atk2', '<i class="cd"></i>');
       L.skill.forEach((id, i) => id && mk('sk sk' + (i + 1), ABILITIES[id].icon, 'skill' + (i + 1), '<i class="cd"></i>'));
       L.ult.forEach((id, i) => id && mk('ul ul' + (i + 1), ABILITIES[id].icon, 'ult' + (i + 1), '<i class="cd"></i>'));
-      mk('dodge', '💨', 'dodge'); mk('jump', '⤒', 'jump');
+      mk('dodge', '💫', 'dodge'); mk('jump', '⤒', 'jump'); mk('guard', '🛡', 'guard'); mk('parry', '✨', 'parry', '<i class="cd"></i>');
     } else {
       mk('jump big', sp.rig === 'butterfly' ? '⇧' : sp.rig === 'snake' ? '⚡' : '⤒', 'jump');
       this.tInteract = mk('interact', '✋', 'interact');
@@ -166,7 +166,7 @@ export class UI {
       L[slot].forEach((id, i) => { const a = ABILITIES[id]; h += `<div class="ab ${a ? '' : 'empty'}" data-id="${id || ''}" title="${a ? a.name + ' — ' + a.desc : 'Empty slot'}"><span>${a ? a.icon : ''}</span><kbd>${keys[slot][i]}</kbd><i class="cd"></i></div>`; });
       h += '</div>';
     }
-    h += `<div class="grp"><div class="ab"><span>💨</span><kbd>Shift</kbd></div></div>`;
+    h += `<div class="grp def"><div class="ab" title="Dodge — just before a hit = Perfect Dodge"><span>💫</span><kbd>Shift</kbd></div><div class="ab" id="abGuard" title="Guard (hold) — start right as a hit lands = Perfect Guard"><span>🛡</span><kbd>F</kbd></div><div class="ab" id="abParry" title="Parry (tap) — just before a melee hit or projectile"><span>✨</span><kbd>E</kbd><i class="cd"></i></div></div>`;
     bar.innerHTML = h;
   }
   update(dt) {
@@ -183,6 +183,7 @@ export class UI {
     if (g.world) $('#clock').textContent = (g.state === 'rift' ? '◈ Rift' : (g.world.night > 0.5 ? '🌙 ' : '☀️ ') + g.world.clockText()) + (p.key === 'cat' && g.world.night > 0.5 && g.state !== 'rift' ? ' · Night vision' : '');
     // status tags
     const tags = []; if (p.crouch) tags.push('🐾 Sneaking'); if (p.hidden || p.inBush) tags.push('🌿 Hidden'); if (p.swimming) tags.push('🌊 Swimming'); if (p.sit && p.sitTime > 2.2) tags.push(p.sitTime > 4 ? '💤 Napping' : '🛌 Resting'); else if (p.sit) tags.push('🪑 Sitting');
+    if (g.state === 'rift') { if (p.guardBroken > 0) tags.push('💥 Guard broken'); else if (p.guarding) tags.push('🛡 Guarding'); const pc = document.querySelector('#abParry .cd') || document.querySelector('#tBtns .parry .cd'); if (pc) pc.style.height = clamp((p.parryCd || 0) / 0.8, 0, 1) * 100 + '%'; const gb = document.getElementById('abGuard'); if (gb) gb.classList.toggle('on', !!p.guarding); }
     if (p.charging && p.charge > 0.12) tags.push(`⤒ Jump ${Math.round(p.charge * 100)}%`);
     for (const b of p.buffs) if (b.name) tags.push(`✨ ${b.name} ${b.t.toFixed(0)}s`);
     $('#buffs').innerHTML = tags.map((t) => `<span>${t}</span>`).join('');
@@ -218,6 +219,13 @@ export class UI {
   banner(text) { const b = $('#banner'); b.textContent = text; b.classList.remove('show'); void b.offsetWidth; b.classList.add('show'); }
   hurtFlash() { const f = $('#flash'); f.className = 'hurt'; void f.offsetWidth; f.className = 'hurt go'; }
   ultFlash(def) { const f = $('#flash'); f.style.setProperty('--c', '#' + new THREE.Color(def.color).getHexString()); f.className = 'ult'; void f.offsetWidth; f.className = 'ult go'; this.banner(`${def.icon} ${def.name}`); }
+  perfectFlash(c) { const f = $('#flash'); f.style.setProperty('--c', c); f.className = 'perfect'; void f.offsetWidth; f.className = 'perfect go'; }
+  combatTutorial() {
+    const pc = `<table class="keys"><tr><td>💫 Dodge</td><td><kbd>Shift</kbd> / <kbd>C</kbd> — dash with brief invincibility. Dodge <b>just before</b> a hit for a <b>Perfect Dodge</b>: slow motion + damage boost.</td></tr><tr><td>🛡 Guard</td><td>Hold <kbd>F</kbd> — block attacks you are facing (costs energy). Run out of energy → <b>Guard Break</b>.</td></tr><tr><td>🛡✨ Perfect Guard</td><td>Start guarding <b>right as</b> the hit lands — no damage, energy back, attacker flinches.</td></tr><tr><td>⚔✨ Parry</td><td>Tap <kbd>E</kbd> (or middle mouse) in the split second before a melee hit or projectile. Staggers the enemy (+50% damage taken), reflects shots, and gives you a <b>Counter</b> buff. Miss it and you're open for a moment!</td></tr></table>`;
+    const touch = `<p>💫 <b>Dodge</b> — dodge just before a hit for a <b>Perfect Dodge</b> (slow motion).<br>🛡 <b>Guard</b> (hold) — blocks hits you face, costs energy. Start guarding right as a hit lands for a <b>Perfect Guard</b>.<br>✨ <b>Parry</b> (tap) — time it just before a melee hit or projectile to stagger the enemy or reflect the shot. Missing leaves you open!</p>`;
+    const m = this.openModal(`<h2>⚔ Fighting in the Rift</h2>${isTouch ? touch : pc}<p><span style="color:#ffd040">✦ Gold flash</span> = attack you can parry or guard. <span style="color:#ff5060">✦ Red flash / red circle</span> = unblockable, <b>dodge or move!</b></p><div class="btns"><button class="primary" id="mOk">Got it</button></div>`, 'pause');
+    $('#mOk', m).onclick = () => this.closeModal();
+  }
   bossBar(e) { this.boss = e; const b = $('#bossBar'); b.classList.toggle('on', !!e); if (e) b.querySelector('span').textContent = e.def.name; }
   fade(on, purple) { const f = $('#fade'); f.classList.toggle('purple', !!purple); f.classList.toggle('on', on); }
   // ───────── Damage numbers ─────────
@@ -319,9 +327,9 @@ export class UI {
       <tr><td>Jump / Fly / Rise</td><td><kbd>Space</kbd> (cats: hold to charge)</td></tr><tr><td>Sprint</td><td><kbd>Shift</kbd></td></tr>
       <tr><td>Interact / Eat</td><td><kbd>E</kbd></td></tr><tr><td>Instinct</td><td><kbd>F</kbd></td></tr><tr><td>Sit / Nap / Dive</td><td><kbd>X</kbd></td></tr>
       <tr><td>Call (meow, bark…)</td><td><kbd>LMB</kbd> in the city</td></tr>
-      <tr><td>Attacks (Rift)</td><td><kbd>LMB</kbd> <kbd>RMB</kbd></td></tr><tr><td>Skills</td><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td></tr><tr><td>Ultimates</td><td><kbd>Q</kbd> <kbd>R</kbd></td></tr><tr><td>Dodge</td><td><kbd>Shift</kbd> / <kbd>C</kbd> in the Rift</td></tr>
+      <tr><td>Attacks (Rift)</td><td><kbd>LMB</kbd> <kbd>RMB</kbd></td></tr><tr><td>Skills</td><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td></tr><tr><td>Ultimates</td><td><kbd>Q</kbd> <kbd>R</kbd></td></tr><tr><td>Dodge</td><td><kbd>Shift</kbd> / <kbd>C</kbd> in the Rift</td></tr><tr><td>Guard (hold) / Parry (tap)</td><td><kbd>F</kbd> / <kbd>E</kbd> or middle mouse in the Rift</td></tr>
       <tr><td>Map · Abilities · Journal</td><td><kbd>M</kbd> · <kbd>I</kbd> · <kbd>L</kbd></td></tr><tr><td>Camera mode (3D / 2.5D)</td><td><kbd>V</kbd></td></tr></table>`;
-    const touch = `<p>Left side: drag to move (push to the edge to sprint).<br>Right side: drag to look around.<br>Buttons: Jump, Interact (appears when something is nearby), Instinct, Sit/Nap, Call.<br>In the Rift: attack, skills, ultimates and dodge buttons appear.</p>`;
+    const touch = `<p>Left side: drag to move (push to the edge to sprint).<br>Right side: drag to look around.<br>Buttons: Jump, Interact (appears when something is nearby), Instinct, Sit/Nap, Call.<br>In the Rift: attack, skills, ultimates, dodge, 🛡 guard (hold) and ✨ parry (tap) buttons appear.</p>`;
     const m = this.openModal(`<h2>Controls</h2>${isTouch ? touch : pc}<div class="btns"><button id="mBack">Back</button></div>`, 'pause');
     $('#mBack', m).onclick = () => this.openPause();
   }
@@ -386,10 +394,10 @@ export class UI {
     this.drawMinimap($('#bigMap', m));
     $('#mBack', m).onclick = () => this.closeModal();
   }
-  results(win, xp, levels, firstClear) {
+  results(win, xp, levels, firstClear, st) {
     const m = this.openModal(`<h2>${win ? '✨ Rift Cleansed' : '💨 Pushed out of the mist'}</h2>
       <p>${win ? 'The mist fades from this corner of the city — for now.' : 'You were overwhelmed, but you escaped safely. Train, eat well, and try again.'}</p>
-      <div class="res"><div>⭐ +${xp} XP</div>${levels ? `<div>🎉 Level up! → Lv ${this.game.prog.level} (+${levels} SP)</div>` : ''}${firstClear ? '<div>💠 First clear bonus: +1 SP</div>' : ''}</div>
+      <div class="res"><div>⭐ +${xp} XP</div>${st ? `<div class="stats">✨ Parries ${st.parry} · 🛡 Perfect guards ${st.pguard} · 💫 Perfect dodges ${st.pdodge}${win && st.hits === 0 ? ' · 🏆 Untouched! +40 XP' : ''}</div>` : ''}${levels ? `<div>🎉 Level up! → Lv ${this.game.prog.level} (+${levels} SP)</div>` : ''}${firstClear ? '<div>💠 First clear bonus: +1 SP</div>' : ''}</div>
       <div class="btns"><button class="primary" id="mOk">Continue</button>${(levels || firstClear) ? '<button id="mAb">Learn abilities</button>' : ''}</div>`, 'storyM');
     $('#mOk', m).onclick = () => this.closeModal();
     const ab = $('#mAb', m); if (ab) ab.onclick = () => this.openAbilities();

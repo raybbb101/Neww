@@ -21,7 +21,8 @@ Runs in any modern browser on **PC and mobile**. It has a **fullscreen** button 
 | Instinct (species ability) | `F` |
 | Sit / nap / dive | `X` |
 | Call (meow, bark…) | `Left click` in the city, or `G` |
-| Rift attacks | `Left click`, `Right click` · skills `1 2 3` · ultimates `Q R` · dodge `Shift`/`C` |
+| Rift attacks | `Left click`, `Right click` · skills `1 2 3` · ultimates `Q R` |
+| Rift defence | dodge `Shift`/`C` · guard (hold) `F` · parry (tap) `E` or middle mouse |
 | Map · Abilities · Journal · Pause | `M` · `I` · `L` · `Esc` |
 | Toggle 3D / 2.5D camera | `V` |
 
@@ -41,6 +42,13 @@ Left side of the screen is the joystick (push it to the edge to sprint). Drag on
 - **Needs**: hunger, energy and mood. Good food, naps, petting and play make your creature happy (+10% damage in the Rift). Bad food has real consequences.
 - **Habits journal**: 5 real‑life habits per species. They give XP, and completing all of them gives a skill point.
 - **Combat**: 2 normal attacks, up to 3 skills and 2 ultimates per creature (8 abilities each, 48 total). You start with 1 normal attack, 1 skill and 1 ultimate. Unlock the rest with skill points from levelling up (fight in the mist), the 10 hidden **Echo Shards** around the city, and completing habits.
+- **Defensive combat**:
+  - **Dodge** gives a short invincible dash. Dodge just before a hit for a **Perfect Dodge**: slow motion plus a damage buff.
+  - **Guard** (hold) blocks attacks you're facing but drains energy. Run out and your guard breaks.
+  - **Perfect Guard** means starting your guard right as a hit lands. You take no damage, get energy back, and the attacker flinches.
+  - **Parry** (tap) has a tight timing window. It staggers melee attackers (they take +50% damage), reflects projectiles, and gives you a Counter buff. A missed parry leaves you open.
+  - Enemies flash **gold** before attacks you can parry or guard, and **red** before unblockable ones you have to dodge.
+  - Perfect parries, guards and dodges give bonus XP, and so does clearing a rift without being hit.
 - **Rifts**: 8 mist zones (tiers 1–5) with 5 monster types that are neither animal nor human. Enemy attacks are telegraphed, and there's a multi‑phase boss called *The Unwoven*.
 - Progress auto-saves in the browser, separately for each creature.
 

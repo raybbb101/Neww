@@ -5,7 +5,7 @@ const KEYMAP = {
   KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right',
   Space: 'jump', ShiftLeft: 'sprint', ShiftRight: 'sprint', KeyE: 'interact', KeyF: 'instinct', KeyC: 'dodge',
   KeyJ: 'atk1', KeyK: 'atk2', Digit1: 'skill1', Digit2: 'skill2', Digit3: 'skill3', KeyQ: 'ult1', KeyR: 'ult2',
-  KeyM: 'map', Tab: 'map', Escape: 'pause', KeyP: 'pause', KeyI: 'abilities', KeyL: 'journal', KeyV: 'camMode', KeyX: 'sit', KeyG: 'voice',
+  KeyM: 'map', Tab: 'map', Escape: 'pause', KeyP: 'pause', KeyI: 'abilities', KeyL: 'journal', KeyV: 'camMode', KeyX: 'sit', KeyG: 'voice', KeyT: 'parry',
 };
 
 export class Input {
@@ -43,10 +43,12 @@ export class Input {
       }
       if (e.button === 0) this.press('atk1');
       if (e.button === 2) this.press('atk2');
+      if (e.button === 1) { e.preventDefault(); this.press('parry'); }
     });
     window.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.release('atk1');
       if (e.button === 2) this.release('atk2');
+      if (e.button === 1) this.release('parry');
     });
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('pointerlockchange', () => {

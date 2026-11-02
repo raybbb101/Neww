@@ -19,7 +19,7 @@ export const TIER_LEVEL = { 1: 1, 2: 3, 3: 5, 4: 7, 5: 9 };
 class Enemy {
   constructor(rift, type, pos, tier) {
     this.rift = rift; this.type = type; this.def = MONSTERS[type];
-    const hm = 1 + 0.5 * (tier - 1), dm = 1 + 0.32 * (tier - 1);
+    const hm = 1 + 0.5 * (tier - 1), dm = (1 + 0.32 * (tier - 1)) * 1.15;
     this.maxHp = this.def.hp * hm; this.hp = this.maxHp; this.dmg = this.def.dmg * dm; this.radius = this.def.radius;
     this.rig = buildMonster(type, Math.floor(Math.random() * 1e6));
     this.pos = pos.clone(); this.yaw = 0; this.alive = true; this.state = 'spawn'; this.stateT = 0.9; this.cd = rand(0.8, 2);
@@ -31,6 +31,7 @@ class Enemy {
   center() { return new THREE.Vector3(this.pos.x, this.pos.y + (this.flyH + (this.type === 'tumbler' ? 0.55 : this.type === 'totem' ? 1.2 : this.type.startsWith('smear') || this.type === 'mote' ? 0.5 : 0)) * (this.scale || 1), this.pos.z); }
   takeDamage(dmg, info = {}) {
     if (!this.alive || this.state === 'spawn') return;
+    if (this.broken > 0) { dmg *= 1.5; info.crit = true; }
     this.hp -= dmg; this.rig.flash();
     const boss = this.def.boss;
     if (info.kb && info.dir && !boss) this.kb.addScaledVector(info.dir, info.kb * (this.type === 'totem' ? 0.3 : 1));
@@ -64,7 +65,7 @@ class Enemy {
   update(dt) {
     const r = this.rift, p = r.player, def = this.def;
     if (!this.alive) return;
-    this.stateT -= dt; this.cd -= dt; this.stun -= dt; this.fear -= dt; this.slowT -= dt;
+    this.stateT -= dt; this.cd -= dt; this.stun -= dt; this.broken = (this.broken || 0) - dt; this.fear -= dt; this.slowT -= dt;
     if (this.poisonT > 0) { this.poisonT -= dt; this.poisonTick = (this.poisonTick || 0) - dt; if (this.poisonTick <= 0) { this.poisonTick = 0.5; this.hp -= this.poison * 0.5; r.number(this.center().add(new THREE.Vector3(0, 0.9, 0)), Math.round(this.poison * 0.5), '#9dff60'); r.vfx.burst(this.center(), 0x90ff40, 3, 1, 0.5, 0.15, -1); if (this.hp <= 0) return this.die(); } }
     // knockback
     if (this.kb.lengthSq() > 0.001) { this.pos.addScaledVector(this.kb, dt * 6); this.kb.multiplyScalar(Math.exp(-dt * 6)); }
@@ -102,11 +103,12 @@ class Enemy {
         }
       }
     } else if (this.state === 'windup') {
+      if (!this.glinted && this.stateT < 0.32) { this.glinted = true; const unblock = this.kind === 'pulse' || this.kind === 'spike' || this.kind === 'beamPrep'; r.glint(this.center().add(new THREE.Vector3(0, this.radius + 0.5, 0)), !unblock); }
       if (def.charge) this.yaw += angleDiff(this.yaw, toYaw) * Math.min(1, dt * 2);
       if (this.stateT <= 0) this.attack(tp, dist, toYaw);
     } else if (this.state === 'charging') {
       spd = 15; this.chargeHit ||= false;
-      if (!this.chargeHit && Math.hypot(p.pos.x - this.pos.x, p.pos.z - this.pos.z) < this.radius + p.radius + 0.4 && Math.abs(p.pos.y - this.pos.y) < 1.5) { this.chargeHit = true; r.hurtPlayer(this.dmg * 1.3, this.pos); }
+      if (!this.chargeHit && Math.hypot(p.pos.x - this.pos.x, p.pos.z - this.pos.z) < this.radius + p.radius + 0.4 && Math.abs(p.pos.y - this.pos.y) < 1.5) { this.chargeHit = true; const res = r.hurtPlayer(this.dmg * 1.3, this.pos, { type: 'charge', enemy: this }); if (res === 'parry' || res === 'perfect') { this.state = 'recover'; this.stateT = Math.max(this.stateT, 0.6); } }
       r.vfx.trail(this.center(), def.color, 0.4, 0.3);
       if (this.stateT <= 0) { this.state = 'recover'; this.stateT = 1.1; this.cd = def.cd; }
     } else if (this.state === 'recover') {
@@ -114,7 +116,7 @@ class Enemy {
     } else if (this.state === 'beam') {
       this.beamYaw += this.beamDir * dt * 0.9;
       this.beamTick -= dt;
-      if (this.beamTick <= 0) { this.beamTick = 0.12; const o = this.pos; const ddx = p.pos.x - o.x, ddz = p.pos.z - o.z; const along = ddx * Math.sin(this.beamYaw) + ddz * Math.cos(this.beamYaw), perp = Math.abs(ddx * Math.cos(this.beamYaw) - ddz * Math.sin(this.beamYaw)); if (along > 0 && along < 30 && perp < 1.1 && p.pos.y < 3) r.hurtPlayer(this.dmg * 0.35, o); }
+      if (this.beamTick <= 0) { this.beamTick = 0.12; const o = this.pos; const ddx = p.pos.x - o.x, ddz = p.pos.z - o.z; const along = ddx * Math.sin(this.beamYaw) + ddz * Math.cos(this.beamYaw), perp = Math.abs(ddx * Math.cos(this.beamYaw) - ddz * Math.sin(this.beamYaw)); if (along > 0 && along < 30 && perp < 1.1 && p.pos.y < 3) r.hurtPlayer(this.dmg * 0.35, o, { type: 'aoe' }); }
       if (this.stateT <= 0) { this.state = 'recover'; this.stateT = 1.0; this.cd = def.cd; }
     }
     if (spd) { spd *= slow; const ny = this.state === 'charging' ? this.yaw : this.yaw; this.pos.x += Math.sin(ny) * spd * dt; this.pos.z += Math.cos(ny) * spd * dt; }
@@ -126,7 +128,7 @@ class Enemy {
     this.rig.update(dt, { target: p.centerPos(), speed: Math.abs(spd), agitated: this.state === 'windup' || this.state === 'charging', telegraph: this.state === 'windup' ? 1 : 0 });
   }
   windup(t, kind) {
-    const r = this.rift, p = r.player; this.state = 'windup'; this.stateT = t; this.kind = kind;
+    const r = this.rift, p = r.player; this.state = 'windup'; this.stateT = t; this.kind = kind; this.glinted = false;
     audio.sfx('telegraph');
     if (this.def.charge) this.tele = r.vfx.telegraphLine(this.pos, this.yaw, 11, this.radius * 2, t);
     else if (kind === 'pulse') this.tele = r.vfx.telegraph(this.pos, this.def.range, t, 0xa060ff);
@@ -142,16 +144,16 @@ class Enemy {
     } else if (def.charge) { this.state = 'charging'; this.stateT = 0.75; this.chargeHit = false; audio.sfx('dodge'); }
     else if (this.kind === 'pulse') {
       r.vfx.ring(this.pos, def.color, def.range * 1.1, 0.5, 0.1, 0.3); r.vfx.burst(this.center(), def.color, 30, 6, 0.6, 0.3, 0, { flat: true });
-      if (Math.hypot(p.pos.x - this.pos.x, p.pos.z - this.pos.z) < def.range + p.radius && p.pos.y < 2.5) r.hurtPlayer(this.dmg, this.pos);
+      if (Math.hypot(p.pos.x - this.pos.x, p.pos.z - this.pos.z) < def.range + p.radius && p.pos.y < 2.5) r.hurtPlayer(this.dmg, this.pos, { type: 'aoe' });
       audio.sfx('boom', { vol: 0.5 }); r.cam.addShake(0.2); this.state = 'recover'; this.stateT = 0.8;
     } else if (this.kind === 'spike') {
       const s = this.spikeAt; const sp = new THREE.Mesh(new THREE.ConeGeometry(0.6, 2.4, 5), new THREE.MeshStandardMaterial({ color: 0x0a0812, emissive: def.color, emissiveIntensity: 1.2 }));
       sp.position.copy(s); r.vfx.custom(sp, 0.7, (f, k) => { sp.position.y = s.y + Math.min(1, k * 6) * 1.2 - (k > 0.7 ? (k - 0.7) * 6 : 0); });
-      if (Math.hypot(p.pos.x - s.x, p.pos.z - s.z) < 1.9 + p.radius && p.pos.y < 2.5) r.hurtPlayer(this.dmg * 0.8, s);
+      if (Math.hypot(p.pos.x - s.x, p.pos.z - s.z) < 1.9 + p.radius && p.pos.y < 2.5) r.hurtPlayer(this.dmg * 0.8, s, { type: 'aoe' });
       this.state = 'recover'; this.stateT = 0.6;
     } else if (def.melee) {
       const f = this.meleeAt; r.vfx.slash(this.center(), this.yaw, def.color, def.range + 0.4, 100, 0.25);
-      if (Math.hypot(p.pos.x - f.x, p.pos.z - f.z) < def.range * 0.9 + p.radius && p.pos.y < 2.5) r.hurtPlayer(this.dmg, this.pos);
+      if (Math.hypot(p.pos.x - f.x, p.pos.z - f.z) < def.range * 0.9 + p.radius && p.pos.y < 2.5) r.hurtPlayer(this.dmg, this.pos, { type: 'melee', enemy: this });
       this.pos.addScaledVector(new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw)), 0.5);
       this.state = 'recover'; this.stateT = 0.5;
     }
@@ -167,7 +169,7 @@ class Enemy {
     const pick = Math.floor(Math.random() * 3);
     const fast = hpK < 0.33 ? 0.7 : 1;
     if (pick === 0) { // rotating beam
-      this.state = 'windup'; this.stateT = 1.0 * fast; this.kind = 'beamPrep';
+      this.state = 'windup'; this.stateT = 1.0 * fast; this.kind = 'beamPrep'; this.glinted = false;
       this.beamYaw = toYaw - 0.8; this.beamDir = 1;
       this.tele = r.vfx.telegraphLine(this.pos, this.beamYaw, 28, 2.2, 1.0 * fast);
       this.attack = () => { this.state = 'beam'; this.stateT = 2.2; this.beamTick = 0; const from = () => this.center().setY(1); r.vfx.beam(from(), this.beamYaw, 30, 2.2, def.color, 2.2, { follow: from, followYaw: () => this.beamYaw }); audio.sfx('shoot', { vol: 2 }); this.attack = Enemy.prototype.attack; };
@@ -177,8 +179,8 @@ class Enemy {
     } else { // slams at player position
       this.state = 'recover'; this.stateT = 2.2; this.cd = def.cd * fast;
       for (let i = 0; i < 4; i++) setTimeout(() => {
-        if (!this.alive) return; const s = p.pos.clone(); s.y = 0; r.vfx.telegraph(s, 3, 0.85);
-        setTimeout(() => { if (!this.alive) return; r.vfx.ring(s, def.color, 4, 0.4); r.vfx.burst(s.clone().setY(0.3), def.color, 25, 6, 0.5, 0.3, 6); r.cam.addShake(0.35); audio.sfx('boom', { vol: 0.6 }); if (Math.hypot(p.pos.x - s.x, p.pos.z - s.z) < 3 + p.radius && p.pos.y < 3) r.hurtPlayer(this.dmg, s); }, 850);
+        if (!this.alive) return; const s = p.pos.clone(); s.y = 0; r.vfx.telegraph(s, 3, 0.85); setTimeout(() => r.glint(s.clone().setY(1.2), false), 600);
+        setTimeout(() => { if (!this.alive) return; r.vfx.ring(s, def.color, 4, 0.4); r.vfx.burst(s.clone().setY(0.3), def.color, 25, 6, 0.5, 0.3, 6); r.cam.addShake(0.35); audio.sfx('boom', { vol: 0.6 }); if (Math.hypot(p.pos.x - s.x, p.pos.z - s.z) < 3 + p.radius && p.pos.y < 3) r.hurtPlayer(this.dmg, s, { type: 'aoe' }); }, 850);
       }, i * 500);
     }
   }
@@ -256,9 +258,10 @@ export class Rift {
   enter(mist) {
     if (!this.built) this.build();
     this.mist = mist; this.tier = mist.tier; this.wave = 0; this.waves = TIER_WAVES[this.tier]; this.done = false; this.result = null; this.xpGained = 0; this.timer = 0;
-    this.enemies = []; this.eShots.forEach((s) => this.scene.remove(s.mesh)); this.eShots = [];
+    this.enemies = []; this.eShots.forEach((s) => this.scene.remove(s.mesh)); this.eShots = []; this.stats = { parry: 0, pguard: 0, pdodge: 0, hits: 0 };
     this.combat = new Combat({ player: this.player, vfx: this.vfx, scene: this.scene, enemies: this.enemies, cam: this.cam, groundY: 0, toast: (t, k) => this.game.ui.toast(t, k), number: (p, t, c) => this.number(p, t, c), hitstop: (t) => this.game.hitstop(t), ultFlash: (d) => this.game.ui.ultFlash(d) });
     const p = this.player; p.mode = 'rift'; p.spirit = 30; p.buffs = []; p.cds = {}; p.shield = 0; p.invuln = 1.5; p.flying = p.sp.rig === 'butterfly'; p.crouch = false; p.sit = 0;
+    p.parryT = 0; p.parryCd = 0; p.parryRec = 0; p.guarding = false; p.guardT = 0; p.guardBroken = 0; p.dodgeWin = 0;
     p.addTo(this.scene); p.teleport(new THREE.Vector3(0, 0, 14), Math.PI);
     this.vfx.attach(this.scene); this.vfx.clear();
     this.cam.snapBehind(p);
@@ -290,18 +293,97 @@ export class Rift {
     const tp = this.player.centerPos(); const vy = clamp((tp.y - from.y) / 2, -2, 2);
     this.eShots.push({ mesh, pos: mesh.position, vel: new THREE.Vector3(Math.sin(yaw) * speed, vy, Math.cos(yaw) * speed), dmg, life: 4, color });
   }
-  hurtPlayer(dmg, from) {
-    const p = this.player;
-    if (p.invuln > 0 || p.burrowed > 0 || this.done) return;
-    if (Math.random() < p.buff('dodge')) { this.number(p.centerPos(), 'Dodge', '#9ad8ff'); p.invuln = 0.3; return; }
+  glint(pos, parryable) {
+    // warning flash just before an enemy attack lands: gold = can parry/guard, red = unblockable (dodge!)
+    const c = parryable ? 0xffd040 : 0xff3040;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTexture(), color: c, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    sp.position.copy(pos); this.vfx.custom(sp, 0.35, (f, k) => { const s = Math.sin(k * Math.PI) * (parryable ? 1.6 : 2.2); sp.scale.set(s * 1.6, s * 0.35, 1); sp.material.opacity = 1 - k * 0.5; });
+    const sp2 = sp.clone(); sp2.material = sp.material.clone(); this.vfx.custom(sp2, 0.35, (f, k) => { const s = Math.sin(k * Math.PI) * (parryable ? 1.6 : 2.2); sp2.scale.set(s * 0.35, s * 1.6, 1); sp2.material.opacity = 1 - k * 0.5; sp2.position.copy(pos); });
+    audio.tone({ f: parryable ? 1800 : 500, f2: parryable ? 2600 : 300, type: parryable ? 'sine' : 'sawtooth', dur: 0.15, vol: 0.07, filter: parryable ? undefined : 900 });
+  }
+  /** Returns 'hit' | 'blocked' | 'guardbreak' | 'perfect' | 'parry' | 'dodged' | 'immune' */
+  hurtPlayer(dmg, from, info = {}) {
+    const p = this.player, g = this.game;
+    if (this.done) return 'immune';
+    const type = info.type || 'melee';
+    const blockable = type !== 'aoe';
+    // PARRY — tight window, melee/charge/projectiles; staggers the attacker or reflects the shot
+    if (p.parryT > 0 && blockable) { this.onParry(info); return 'parry'; }
+    if (p.burrowed > 0) return 'immune';
+    if (p.invuln > 0) {
+      if (p.dodgeWin > 0 && !p.perfectDodgeUsed) { // PERFECT DODGE
+        p.perfectDodgeUsed = true; this.stats.pdodge++;
+        g.slowmo(0.9, 0.3); g.ui.perfectFlash('#80d8ff');
+        this.number(p.centerPos().add(new THREE.Vector3(0, 0.6, 0)), 'Perfect Dodge!', '#9ae8ff', true);
+        p.spirit = Math.min(100, p.spirit + 12); this.combat.addBuff({ name: 'Focus', dur: 3, dmg: 1.3, color: 0x80d8ff });
+        audio.tone({ f: 900, f2: 1800, type: 'sine', dur: 0.4, vol: 0.12, rev: 0.8 });
+        this.vfx.burst(p.centerPos(), 0x9ae8ff, 24, 3, 0.6, 0.2, 0);
+      }
+      return 'dodged';
+    }
+    if (Math.random() < p.buff('dodge')) { this.number(p.centerPos(), 'Dodge', '#9ad8ff'); p.invuln = 0.3; return 'dodged'; }
     let d = dmg * (1 - p.def) * (1 - Math.min(0.7, p.buff('dr')));
+    // GUARD — must face the attack; unblockable (red) attacks go straight through
+    if (p.guarding && blockable && from) {
+      const ang = Math.abs(angleDiff(p.yaw, Math.atan2(from.x - p.pos.x, from.z - p.pos.z)));
+      if (ang < 1.9) {
+        if (p.guardT < 0.22) { // PERFECT GUARD
+          this.stats.pguard++;
+          p.energy = Math.min(100, p.energy + 12); p.spirit = Math.min(100, p.spirit + 10); p.invuln = 0.25;
+          this.number(p.centerPos().add(new THREE.Vector3(0, 0.6, 0)), 'Perfect Guard!', '#ffe680', true);
+          this.vfx.burst(p.centerPos().addScaledVector(p.forward, 0.4), 0xffffff, 26, 5, 0.35, 0.18, 0); this.vfx.ring(p.pos, 0xffe680, 2, 0.3);
+          audio.tone({ f: 2200, type: 'triangle', dur: 0.5, vol: 0.12, rev: 0.7 }); audio.tone({ f: 3300, type: 'sine', dur: 0.4, vol: 0.06, rev: 0.7 });
+          g.hitstop(0.09); this.cam.addShake(0.2); g.ui.perfectFlash('#ffe680');
+          if (info.enemy && !info.enemy.def.boss) { info.enemy.stun = Math.max(info.enemy.stun || 0, 0.7); info.enemy.kb.add(new THREE.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw)).multiplyScalar(3)); }
+          return 'perfect';
+        }
+        const cost = d * 1.1;
+        if (p.energy >= cost) { // normal block: chip damage, costs energy
+          p.energy -= cost; d *= 0.2; p.invuln = 0.3;
+          this.number(p.centerPos(), 'Blocked ' + Math.round(d), '#c8d8ff');
+          this.vfx.burst(p.centerPos().addScaledVector(p.forward, 0.4), 0xc8d8ff, 10, 3, 0.25, 0.15, 0);
+          audio.sfx('hit', { vol: 0.5 }); audio.tone({ f: 600, type: 'square', dur: 0.08, vol: 0.05, filter: 1200 });
+          p.knock = new THREE.Vector3(p.pos.x - from.x, 0, p.pos.z - from.z).normalize().multiplyScalar(2.5);
+          p.hp -= d; if (p.hp <= 0) { p.hp = 0; this.finish(false); }
+          return 'blocked';
+        }
+        // GUARD BREAK — out of energy
+        p.energy = 0; p.guarding = false; p.guardBroken = 1.2; p.lockMove = 0.9; d *= 0.7;
+        this.banner('Guard Break!'); audio.sfx('boom', { vol: 0.4 });
+      }
+    }
     if (p.shield > 0) { const a = Math.min(p.shield, d); p.shield -= a; d -= a; }
-    p.hp -= d; p.invuln = 0.45; p.spirit = Math.min(100, p.spirit + 4);
+    p.hp -= d; p.invuln = 0.45; p.spirit = Math.min(100, p.spirit + 4); this.stats.hits++;
     if (from) { const k = new THREE.Vector3(p.pos.x - from.x, 0, p.pos.z - from.z).normalize().multiplyScalar(5); p.knock = k; }
     this.number(p.centerPos(), Math.round(d), '#ff5a6a');
     this.vfx.burst(p.centerPos(), 0xff4060, 12, 3, 0.4, 0.2);
-    this.cam.addShake(0.4); audio.sfx('hurt'); this.game.ui.hurtFlash();
+    this.cam.addShake(0.4); audio.sfx('hurt'); g.ui.hurtFlash();
     if (p.hp <= 0) { p.hp = 0; this.finish(false); }
+    return 'hit';
+  }
+  onParry(info) {
+    const p = this.player, g = this.game;
+    p.parryT = 0; p.parryOk = true; p.invuln = Math.max(p.invuln, 0.45); this.stats.parry++;
+    p.spirit = Math.min(100, p.spirit + 20); p.energy = Math.min(100, p.energy + 15);
+    this.combat.addBuff({ name: 'Counter', dur: 2.2, dmg: 1.8, crit: 0.4, color: 0xffd040 });
+    g.slowmo(0.55, 0.22); g.ui.perfectFlash('#ffd040'); this.cam.addShake(0.5);
+    this.number(p.centerPos().add(new THREE.Vector3(0, 0.7, 0)), 'PARRY!', '#ffd040', true);
+    audio.tone({ f: 1500, type: 'square', dur: 0.08, vol: 0.08, filter: 3000 }); audio.tone({ f: 2600, type: 'triangle', dur: 0.7, vol: 0.12, rev: 0.9 }); audio.sfx('crit');
+    const at = info.shot ? info.shot.pos : info.enemy ? info.enemy.center() : p.centerPos();
+    this.vfx.burst(at, 0xffe060, 40, 7, 0.5, 0.22, 2, { vary: true }); this.vfx.ring(p.pos, 0xffd040, 3, 0.35);
+    p.playAction('swipe', 0.25);
+    if (info.enemy) {
+      const e = info.enemy; const st = e.def.boss ? 1.0 : 2.6;
+      e.stun = Math.max(e.stun || 0, st); e.broken = st; if (e.tele) this.vfx.kill(e.tele);
+      if (e.state === 'charging' || e.state === 'windup') { e.state = 'recover'; e.stateT = st; }
+      if (!e.def.boss) e.kb.add(new THREE.Vector3(e.pos.x - p.pos.x, 0, e.pos.z - p.pos.z).normalize().multiplyScalar(5));
+      this.number(e.center().add(new THREE.Vector3(0, 1, 0)), 'Staggered', '#ffd040');
+    }
+    if (info.shot) { // reflect back, stronger
+      const s = info.shot; s.reflected = true; s.dmg *= 3; s.life = 3;
+      const t = this.combat.nearest(s.pos, 30); const dir = t ? t.center().sub(s.pos).normalize() : s.vel.clone().negate().normalize();
+      s.vel.copy(dir).multiplyScalar(22); s.color = 0xffd040; s.mesh.children[1].material.color.set(0xffd040);
+    }
   }
   onEnemyDie(e) {
     this.xpGained += e.def.xp * (1 + (this.tier - 1) * 0.6);
@@ -316,7 +398,8 @@ export class Rift {
     for (const e of this.enemies) if (e.alive && win) e.die();
     if (win) { audio.sfx('victory'); this.banner('Rift Cleansed!'); this.vfx.burst(this.player.centerPos(), 0xffffff, 80, 8, 1.4, 0.3, -1, { vary: true }); }
     else { audio.sfx('sad'); this.banner('The mist pushes you out…'); }
-    setTimeout(() => this.game.exitRift(win, Math.round(this.xpGained * (win ? 1 : 0.4))), 2600);
+    const st = this.stats; const bonus = win ? st.parry * 6 + st.pguard * 4 + st.pdodge * 3 + (st.hits === 0 ? 40 : 0) : 0;
+    setTimeout(() => this.game.exitRift(win, Math.round(this.xpGained * (win ? 1 : 0.4)) + bonus, st), 2600);
   }
   exit() {
     this.player.removeFrom(this.scene);
@@ -331,6 +414,17 @@ export class Rift {
     if (!this.done && !this.game.ui.modalOpen) {
       const slots = this.game.loadout();
       const tryCast = (id) => id && this.combat.cast(id);
+      // ── Defence: guard (hold), parry (tap, tight window), dodge (perfect dodge if just in time)
+      const wantGuard = (input.down('guard') || input.down('instinct')) && !(p.guardBroken > 0) && !p.dashVel && p.parryT <= 0 && (p.parryRec || 0) <= 0;
+      if (wantGuard && !p.guarding) { p.guarding = true; p.guardT = 0; audio.tone({ f: 300, type: 'triangle', dur: 0.06, vol: 0.05 }); }
+      else if (!wantGuard) p.guarding = false;
+      if ((input.hit('parry') || input.hit('interact')) && (p.parryCd || 0) <= 0 && !p.dashVel) {
+        p.parryT = 0.2; p.parryCd = 0.8; p.parryOk = false; p.guarding = false;
+        const t = this.combat.nearest(p.pos, 6); if (t) p.yaw = Math.atan2(t.pos.x - p.pos.x, t.pos.z - p.pos.z);
+        p.playAction('swipe', 0.2); audio.sfx('swipe', { vol: 0.5 });
+        this.vfx.slash(p.centerPos(), p.yaw, 0xffe080, 1.4, 140, 0.18, 0, 0.25);
+      }
+      if (!p.guarding && p.parryT <= 0 && (p.parryRec || 0) <= 0) {
       if (input.down('atk1')) tryCast(slots.normal[0]);
       if (input.down('atk2')) tryCast(slots.normal[1]);
       if (input.hit('skill1')) tryCast(slots.skill[0]);
@@ -338,14 +432,18 @@ export class Rift {
       if (input.hit('skill3')) tryCast(slots.skill[2]);
       if (input.hit('ult1')) tryCast(slots.ult[0]);
       if (input.hit('ult2')) tryCast(slots.ult[1]);
+      }
       if ((input.hit('dodge') || input.hit('sprint')) && (p.dodgeCd || 0) <= 0 && p.energy >= 15 && !p.dashVel) {
-        p.dodgeCd = 0.55; p.energy -= 15; p.invuln = Math.max(p.invuln, 0.35);
+        p.dodgeCd = 0.55; p.energy -= 15; p.invuln = Math.max(p.invuln, 0.35); p.dodgeWin = 0.2; p.perfectDodgeUsed = false; p.guarding = false;
         const mv = input.move; let yaw = p.yaw;
         if (Math.hypot(mv.x, mv.y) > 0.2) { const cy = this.cam.yaw; yaw = Math.atan2(-Math.sin(cy) * mv.y + Math.cos(cy) * mv.x, -Math.cos(cy) * mv.y - Math.sin(cy) * mv.x); p.yaw = yaw; }
         p.dashVel = { x: Math.sin(yaw) * 16, z: Math.cos(yaw) * 16, t: 0.2 }; audio.sfx('dodge'); this.vfx.dust(p.pos, 6);
       }
     }
-    p.dodgeCd = (p.dodgeCd || 0) - dt; p.stealthT = (p.stealthT || 0) - dt;
+    p.dodgeCd = (p.dodgeCd || 0) - dt; p.stealthT = (p.stealthT || 0) - dt; p.dodgeWin = (p.dodgeWin || 0) - dt;
+    p.parryCd = (p.parryCd || 0) - dt; p.guardBroken = (p.guardBroken || 0) - dt; p.parryRec = (p.parryRec || 0) - dt;
+    if (p.parryT > 0) { p.parryT -= dt; if (p.parryT <= 0 && !p.parryOk) { p.parryRec = 0.35; p.lockMove = 0.35; } } // whiffed parry leaves you open
+    if (p.guarding) { p.guardT += dt; const t = this.combat.nearest(p.pos, 14); if (t) { const want = Math.atan2(t.pos.x - p.pos.x, t.pos.z - p.pos.z); p.yaw += angleDiff(p.yaw, want) * Math.min(1, dt * 12); } p.energy = Math.max(0, p.energy - dt * 3); }
     p.update(dt, input, this.cam.yaw, this.physics);
     // arena edge
     const rr = Math.hypot(p.pos.x, p.pos.z); if (rr > ARENA_R - 0.6) { p.pos.x *= (ARENA_R - 0.6) / rr; p.pos.z *= (ARENA_R - 0.6) / rr; }
@@ -357,7 +455,12 @@ export class Rift {
     for (let i = this.eShots.length - 1; i >= 0; i--) {
       const s = this.eShots[i]; s.life -= dt; s.pos.addScaledVector(s.vel, dt);
       if (Math.random() < 0.5) this.vfx.trail(s.pos, s.color, 0.25, 0.3);
-      if (s.pos.distanceTo(p.centerPos()) < 0.45 + p.radius + 0.1) { this.hurtPlayer(s.dmg, s.pos); s.life = 0; this.vfx.burst(s.pos, s.color, 10, 3, 0.3, 0.2); }
+      if (s.reflected) {
+        for (const e of this.enemies) if (e.alive && e.center().distanceTo(s.pos) < e.radius + 0.4) { e.takeDamage(s.dmg, { crit: true, kb: 2, dir: s.vel.clone().normalize() }); s.life = 0; this.vfx.burst(s.pos, 0xffd040, 16, 4, 0.4, 0.2); break; }
+      } else if (s.pos.distanceTo(p.centerPos()) < 0.45 + p.radius + 0.1) {
+        const res = this.hurtPlayer(s.dmg, s.pos.clone().sub(s.vel), { type: 'proj', shot: s });
+        if (res !== 'parry' && res !== 'dodged') { s.life = 0; this.vfx.burst(s.pos, s.color, 10, 3, 0.3, 0.2); }
+      }
       if (s.pos.y < 0) s.life = 0;
       if (s.life <= 0) { this.scene.remove(s.mesh); this.eShots.splice(i, 1); }
     }

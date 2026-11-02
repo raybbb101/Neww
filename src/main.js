@@ -179,6 +179,7 @@ class Game {
     return levels;
   }
   hitstop(t) { this.hitT = Math.max(this.hitT, t); }
+  slowmo(t, scale) { this.slowT = t; this.slowScale = scale; }
   enterRift(mist) {
     if (this.state !== 'city') return;
     this.state = 'transition'; this.input.clearAll();
@@ -190,9 +191,10 @@ class Game {
       this.rift.enter(mist);
       this.state = 'rift'; this.ui.buildAbilityBar(); this.ui.showHUD(true);
       setTimeout(() => this.ui.fade(false), 200);
+      if (!this.prog.combatTut) { this.prog.combatTut = true; setTimeout(() => this.ui.combatTutorial(), 700); }
     }, 900);
   }
-  exitRift(win, xp) {
+  exitRift(win, xp, stats) {
     this.state = 'transition'; this.ui.fade(true, true);
     setTimeout(() => {
       this.rift.exit(); this.ui.clearEnemyBars();
@@ -210,7 +212,7 @@ class Game {
       this.state = 'city'; this.camRig.snapBehind(p); this.ui.showHUD(true); this.ui.buildAbilityBar();
       audio.setMusic(this.world.night > 0.6 ? 'night' : 'city');
       this.ui.fade(false);
-      this.ui.results(win, xp, levels, first && win);
+      this.ui.results(win, xp, levels, first && win, stats);
       this.save();
     }, 900);
   }
@@ -220,6 +222,7 @@ class Game {
     let dt = Math.min(this.clock.getDelta(), 0.05);
     const realDt = dt;
     if (this.hitT > 0) { this.hitT -= dt; dt *= 0.08; }
+    if (this.slowT > 0) { this.slowT -= realDt; dt *= this.slowScale; }
     const inp = this.input; inp.sample();
     // global hotkeys
     if (this.state === 'city' || this.state === 'rift') {

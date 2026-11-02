@@ -93,8 +93,9 @@ export class Player {
     else target *= Math.max(0.35, mag);
 
     // ── Turning: animals turn along arcs, never strafe
-    if (mag > 0.08) {
-      const want = Math.atan2(dx, dz);
+    const strafe = this.guarding && inRift;
+    if (strafe) target = Math.min(target, M.walk * 1.4) * Math.max(0.35, mag);
+    if (mag > 0.08 && !strafe) {
       const diff = angleDiff(this.yaw, want);
       const turnSpd = (M.turn || 9) * (inRift ? 1.6 : 1) * (this.onGround || this.flyingNow() ? 1 : 0.4) * (this.speed > M.run * 1.2 ? 0.75 : 1);
       // sharp reversals: pivot quickly when slow
@@ -109,7 +110,8 @@ export class Player {
     const accel = (M.accel || 10) * (this.onGround || this.flyingNow() || this.swimming ? 1 : 0.25) * (inRift ? 1.4 : 1);
     this.speed = damp(this.speed, target, target < this.speed ? accel * 1.2 : accel * 0.6, dt);
     if (this.speed < 0.01) this.speed = 0;
-    const hx = Math.sin(this.yaw) * this.speed, hz = Math.cos(this.yaw) * this.speed;
+    const sl = Math.hypot(dx, dz) || 1;
+    const hx = strafe ? (dx / sl) * this.speed : Math.sin(this.yaw) * this.speed, hz = strafe ? (dz / sl) * this.speed : Math.cos(this.yaw) * this.speed;
     if (this.onGround || this.flyingNow() || this.swimming) { this.vel.x = hx; this.vel.z = hz; }
     else { this.vel.x = damp(this.vel.x, hx, 2.5, dt); this.vel.z = damp(this.vel.z, hz, 2.5, dt); }
     if (this.dashVel) { this.vel.x = this.dashVel.x; this.vel.z = this.dashVel.z; this.dashVel.t -= dt; if (this.dashVel.t <= 0) this.dashVel = null; }
@@ -237,7 +239,7 @@ export class Player {
     const a = this.anim;
     a.speed = this.burrowed > 0 ? 0 : (this.dashVel ? Math.hypot(this.dashVel.x, this.dashVel.z) : this.speed);
     a.maxSpeed = M.sprint; a.air = !this.onGround && !this.swimming && !this.flyingNow(); a.vy = this.vel.y;
-    a.crouch = this.crouch ? 1 : 0; a.charge = this.charge; a.sit = this.sit && !lying ? 1 : 0; a.lie = lying ? 1 : 0; a.sleep = lying && this.sitTime > 4;
+    a.crouch = this.crouch || (this.guarding && this.mode === 'rift') ? 1 : 0; a.charge = this.charge; a.sit = this.sit && !lying ? 1 : 0; a.lie = lying ? 1 : 0; a.sleep = lying && this.sitTime > 4;
     a.swim = this.swimming ? 1 : 0; a.turn = this.turnRate; a.flying = this.flyingNow() && !this.landed; a.glide = !input.down('jump');
     a.mood = this.mood / 100; a.action = this.action; a.actionT = this.actionT; a.actionSide = this.comboIdx % 2 ? 1 : -1;
     a.scale = this.buff('scale') ? 1 + this.buff('scale') - (this.buffs.filter((b) => b.scale).length) : 1;
