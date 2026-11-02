@@ -138,6 +138,7 @@ export function buildCity(scene, physics) {
   groundTex.anisotropy = 8; groundTex.generateMipmaps = true; groundTex.minFilter = THREE.LinearMipmapLinearFilter;
   const detail = noiseTexture(256, 11, 1);
   const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.95 });
+  groundMat.customProgramCacheKey = () => 'ground';
   groundMat.onBeforeCompile = (sh) => {
     sh.uniforms.detailMap = { value: detail };
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vWorldXZ;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvWorldXZ = (modelMatrix * vec4(position,1.0)).xz;');

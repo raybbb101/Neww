@@ -88,6 +88,7 @@ export function initMaterials() {
   MAT.lamp = new THREE.MeshStandardMaterial({ color: 0xfff2c0, emissive: 0xffd480, emissiveIntensity: 0, roughness: 0.4 });
 }
 export function windMaterial(mat, amp, byHeight = false) {
+  mat.customProgramCacheKey = () => 'wind' + amp + byHeight;
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = globalUniforms.uTime; sh.uniforms.uWind = globalUniforms.uWind;
     sh.vertexShader = 'uniform float uTime; uniform float uWind;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>

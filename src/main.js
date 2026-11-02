@@ -149,6 +149,13 @@ class Game {
     if (!prog.intro) {
       prog.intro = true;
       const sp2 = SPECIES[key];
+      const tips = [
+        [9000, `💡 Your instinct (${isTouch ? 'the ' + SPECIES[key].instinct.icon + ' button' : 'F'}): ${SPECIES[key].instinct.desc}`],
+        [20000, '💡 Eat foods your species loves to stay happy — a happy creature fights harder.'],
+        [34000, '💡 Purple swirls on the minimap are black mist. Walk close if you dare…'],
+        [50000, `💡 Hidden Echo Shards 💎 give Skill Points. Open the Journal (${isTouch ? '☰ menu' : 'L'}) for hints and your habits.`],
+      ];
+      tips.forEach(([t, m]) => setTimeout(() => { if (this.state === 'city' && this.player?.key === key) this.ui.toast(m); }, t));
       this.ui.story(`One night, a seam tore open above the city and a <b>black mist</b> began to seep out. Humans can't see it. Most animals can't either.<br><br>But you can.<br><br>Live your life as a ${sp2.name.toLowerCase()} — explore, eat, nap, make friends. And when you're ready, step into the mist and fight what's hiding inside.<br><br><small>${isTouch ? 'Left side: move · Right side: look · Buttons: jump, interact, instinct.' : 'Click the game to control the camera. WASD to move, Space to jump, E to interact, F for your instinct.'}</small>`, `${sp2.emoji} You are a ${sp2.name}`);
     }
     this.save();

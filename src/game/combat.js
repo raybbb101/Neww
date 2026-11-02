@@ -244,7 +244,7 @@ export class Combat {
     for (let i = 0; i < def.count; i++) {
       const sp = SPECIES.dog;
       const rig = buildCreature('dog', sp, { name: 'Spirit', base: 0x9ad8ff, belly: 0xe0f8ff, stripe: 0x6ab0e0, eye: 0xffffff });
-      rig.root.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.65; o.material.emissive = new THREE.Color(def.color); o.material.emissiveIntensity = 0.8; } });
+      rig.root.traverse((o) => { if (o.isMesh && o.material.isMeshStandardMaterial) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.65; o.material.emissive = new THREE.Color(def.color); o.material.emissiveIntensity = 0.8; } });
       const a = (i / def.count) * TAU;
       const pos = p.pos.clone().add(new THREE.Vector3(Math.cos(a) * 1.5, 0, Math.sin(a) * 1.5));
       rig.root.position.copy(pos); this.ctx.scene.add(rig.root);
@@ -257,7 +257,7 @@ export class Combat {
     const p = this.player;
     for (let i = 0; i < def.count; i++) {
       const rig = buildCreature(p.key, p.sp, p.coat);
-      rig.root.traverse((o) => { if (o.isMesh) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.55; o.material.emissive = new THREE.Color(def.color); o.material.emissiveIntensity = 0.6; } });
+      rig.root.traverse((o) => { if (o.isMesh && o.material.isMeshStandardMaterial) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.55; o.material.emissive = new THREE.Color(def.color); o.material.emissiveIntensity = 0.6; } });
       const a = p.yaw + (i ? 1.6 : -1.6);
       const pos = p.pos.clone().add(new THREE.Vector3(Math.sin(a) * 2.5, 0, Math.cos(a) * 2.5));
       rig.root.position.copy(pos); this.ctx.scene.add(rig.root);

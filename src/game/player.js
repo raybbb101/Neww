@@ -123,7 +123,7 @@ export class Player {
     if (isFly) {
       // Butterfly: always airborne. Jump = rise, release = gently sink.
       const up = input.down('jump'), down = input.down('sit') || input.down('dodge') && false;
-      const maxAlt = inRift ? 3.2 : 80;
+      const maxAlt = inRift ? 2.2 : 80;
       const vyT = up ? 2.6 : down ? -2.2 : -0.45;
       this.vel.y = damp(this.vel.y, vyT, 3, dt);
       if (this.updraft > 0) { this.updraft -= dt; this.vel.y = Math.max(this.vel.y, 7); }
@@ -143,7 +143,7 @@ export class Player {
         const glideVy = dive ? -9 : this.speed > 2 ? -1.2 : -2.4;
         this.vel.y = damp(this.vel.y, climb ? this.vel.y : glideVy, climb ? 0 : 1.8, dt);
         this.vel.y -= (climb ? GRAV * 0.55 : 0) * dt;
-        if (inRift && this.pos.y > 4 && this.vel.y > 0) this.vel.y = 0;
+        if (inRift && this.pos.y > 2.2 && this.vel.y > 0) this.vel.y = 0;
         if (this.pos.y > 120) this.vel.y = Math.min(this.vel.y, 0);
       } else this.vel.y -= GRAV * dt;
     } else if (isSnake) {
